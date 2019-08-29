@@ -55,11 +55,17 @@ class MyBot():
         #print(p.pose.position.x)
         #print(p.pose.position.y)
         if enemyPose.pose.position.x == 0 and enemyPose.pose.position.y == 0:
-            self.target_pos_dict["BL_B"] = [None, None, None]
+            if self.name == "red_bot":
+                self.target_pos_dict["BL_B"] = [None, None, None]
+            elif self.name == "blue_bot":
+                self.target_pos_dict["RE_B"] = [None, None, None]
         else:
             #print([p.pose.position.x, p.pose.position.y, 2 * math.asin(p.pose.orientation.z)])
-            self.target_pos_dict["BL_B"] = [p.pose.position.x, p.pose.position.y, 2 * math.asin(p.pose.orientation.z)/math.pi*180]
-            print("############# enemy update!!!! #######################")
+            if self.name == "red_bot":
+                self.target_pos_dict["BL_B"] = [p.pose.position.x, p.pose.position.y, 2 * math.asin(p.pose.orientation.z)/math.pi*180]
+            elif self.name == "blue_bot":
+                self.target_pos_dict["RE_B"] = [p.pose.position.x, p.pose.position.y, 2 * math.asin(p.pose.orientation.z)/math.pi*180]
+            #print("############# enemy update!!!! #######################")
         #print(self.target_pos_dict)
 
     def getRadFromDeg(self, deg):
@@ -152,13 +158,20 @@ if __name__ == '__main__':
             elif ((position[0]-target[0])**2+(position[1]-target[1])**2) < ((position[0]-new_goal[0])**2+(position[1]-new_goal[1])**2):
                 new_goal = target
         
-        print(my_bot.target_pos_dict["BL_B"])
-        if my_bot.target_pos_dict["BL_B"] != [None,None,None]:
-            new_goal = my_bot.target_pos_dict["BL_B"]
-            print("############# enemy goal set!!!! #######################")
-        print(new_goal)
+        if my_bot.name == "red_bot":
+            #print(my_bot.target_pos_dict["BL_B"])
+            if my_bot.target_pos_dict["BL_B"] != [None,None,None]:
+                new_goal = my_bot.target_pos_dict["BL_B"]
+                #print("############# enemy goal set!!!! #######################")
+        elif my_bot.name == "blue_bot":
+            #print(my_bot.target_pos_dict["RE_B"])
+            if my_bot.target_pos_dict["RE_B"] != [None,None,None]:
+                new_goal = my_bot.target_pos_dict["RE_B"]
+                #print("############# enemy goal set!!!! #######################")
+
+        #print(new_goal)
         if new_goal != current_goal:
-            print("new target")
+            #print("new target")
             current_goal = new_goal
             my_bot.sendGoal(current_goal[0], current_goal[1], current_goal[2])
         rospy.sleep(0.5)

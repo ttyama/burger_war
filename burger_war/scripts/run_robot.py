@@ -1,4 +1,6 @@
-#!/usr/bin/env python
+#!/usr/bin/env python                                                                        
+# -*- coding: utf-8 -*-  
+# https://demura.net/lecture/12469.html         
 
 import rospy
 import math
@@ -56,11 +58,17 @@ class MyBot():
         #print(p.pose.position.x)
         #print(p.pose.position.y)
         if enemyPose.pose.position.x == 0 and enemyPose.pose.position.y == 0:
-            self.target_pos_dict["BL_B"] = [None, None, None]
+            if self.name == "red_bot":
+                self.target_pos_dict["BL_B"] = [None, None, None]
+            elif self.name == "blue_bot":
+                self.target_pos_dict["RE_B"] = [None, None, None]
         else:
             #print([p.pose.position.x, p.pose.position.y, 2 * math.asin(p.pose.orientation.z)])
-            self.target_pos_dict["BL_B"] = [p.pose.position.x, p.pose.position.y, 2 * math.asin(p.pose.orientation.z)/math.pi*180]
-            print("############# enemy update!!!! #######################")
+            if self.name == "red_bot":
+                self.target_pos_dict["BL_B"] = [p.pose.position.x, p.pose.position.y, 2 * math.asin(p.pose.orientation.z)/math.pi*180]
+            elif self.name == "blue_bot":
+                self.target_pos_dict["RE_B"] = [p.pose.position.x, p.pose.position.y, 2 * math.asin(p.pose.orientation.z)/math.pi*180]
+            #print("############# enemy update!!!! #######################")
         #print(self.target_pos_dict)
 
     def getRadFromDeg(self, deg):
@@ -142,6 +150,12 @@ if __name__ == '__main__':
         my_bot = MyBot("blue_bot", server_ip)
         print("b")
     current_goal = []
+    enemy_find_flag = False
+    enemy_find_time = rospy.get_time()
+    enemy_find_pos = []
+    enemy_lost_time = 5
+    enemy_dist = 0.3
+
     # main loop
     while not rospy.is_shutdown():
         # check current score
@@ -163,10 +177,38 @@ if __name__ == '__main__':
             elif ((position[0]-target[0])**2+(position[1]-target[1])**2) < ((position[0]-new_goal[0])**2+(position[1]-new_goal[1])**2):
                 new_goal = target
         
-        print(my_bot.target_pos_dict["BL_B"])
-        if my_bot.target_pos_dict["BL_B"] != [None,None,None]:
-            new_goal = my_bot.target_pos_dict["BL_B"]
-            print("############# enemy goal set!!!! #######################")
+        if my_bot.name == "red_bot":
+            print(my_bot.target_pos_dict["BL_B"])
+            if my_bot.target_pos_dict["BL_B"] != [None,None,None]:
+                enemy_find_flag = True
+                enemy_find_time = rospy.get_time()
+                enemy_find_pos = my_bot.target_pos_dict["BL_B"]
+                
+                #ちょっと離れたところを目標座標に設定する
+                th = math.atan2(enemy_find_pos[1]-position[1], enemy_find_pos[0]-position[0])
+                new_goal = [enemy_find_pos[0]-enemy_dist*math.cos(th), enemy_find_pos[1]-enemy_dist*math.sin(th), enemy_find_pos[2]]
+
+                print("############# enemy goal set!!!! #######################")
+        elif my_bot.name == "blue_bot":
+            print(my_bot.target_pos_dict["RE_B"])
+            if my_bot.target_pos_dict["RE_B"] != [None,None,None]:
+                enemy_find_flag = True
+                enemy_find_time = rospy.get_time()
+                enemy_find_pos = my_bot.target_pos_dict["RE_B"]
+                new_goal = enemy_find_pos
+                print("############# enemy goal set!!!! #######################")
+        
+        # 敵を見失ってもしばらく目標を変えない
+        if enemy_find_flag == True:
+            if rospy.get_time() - enemy_find_time > enemy_lost_time:
+                enemy_find_flag = False
+                print("############# enemy lost ###################")
+            else:
+                print(rospy.get_time() - enemy_find_time)
+                #ちょっと離れたところを目標座標に設定する
+                th = math.atan2(enemy_find_pos[1]-position[1], enemy_find_pos[0]-position[0])
+                new_goal = [enemy_find_pos[0]-enemy_dist*math.cos(th), enemy_find_pos[1]-enemy_dist*math.sin(th), enemy_find_pos[2]]
+
         print(new_goal)
         if new_goal != current_goal:
             print("new target")
