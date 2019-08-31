@@ -1,6 +1,4 @@
-#!/usr/bin/env python                                                                        
-# -*- coding: utf-8 -*-  
-# https://demura.net/lecture/12469.html         
+#!/usr/bin/env python
 
 import rospy
 import math
@@ -14,13 +12,12 @@ from geometry_msgs.msg import PoseStamped
 
 
 class MyBot():
-    def __init__(self, robot_name, server_ip):
+    def __init__(self, robot_name):
         self.name = robot_name
         self.__listener = tf.TransformListener()
         self.__ac = actionlib.SimpleActionClient(
-            "move_base", MoveBaseAction)
+            "/{}/move_base".format(self.name), MoveBaseAction)
         self.__ac.wait_for_server()
-        self.server_ip = server_ip
 
         # targtet position
         self.target_pos_dict = {
@@ -47,14 +44,14 @@ class MyBot():
         self.updateScore()
 
         #yamaguchi add
-        self.enemyPose_sub = rospy.Subscriber("enemyPose",PoseStamped,self.enemyPoseUpdate)
+        self.enemyPose_sub = rospy.Subscriber("/{}/enemyPose".format(self.name),PoseStamped,self.enemyPoseUpdate)
     
     def enemyPoseUpdate(self, enemyPose):
         #print(enemyPose)
         #print(enemyPose.pose.position.x)
         #print(enemyPose.pose.position.y)
-        enemyPose.header.stamp = self.__listener.getLatestCommonTime("odom", "base_scan")
-        p = self.__listener.transformPose("odom", enemyPose)
+        enemyPose.header.stamp = self.__listener.getLatestCommonTime("/{}/odom".format(self.name), "/{}/base_scan".format(self.name))
+        p = self.__listener.transformPose("{}/odom".format(self.name), enemyPose)
         #print(p.pose.position.x)
         #print(p.pose.position.y)
         if enemyPose.pose.position.x == 0 and enemyPose.pose.position.y == 0:
@@ -76,7 +73,7 @@ class MyBot():
 
     def generatePose(self, x, y, th):
         goal = MoveBaseGoal()
-        goal.target_pose.header.frame_id = "odom"
+        goal.target_pose.header.frame_id = "/{}/odom".format(self.name)
         goal.target_pose.header.stamp = rospy.Time.now()
 
         goal.target_pose.pose.position.x = x
@@ -95,7 +92,7 @@ class MyBot():
         return data
 
     def getScoreState(self):
-        url = "{}/warState".format(self.server_ip)
+        url = "http://localhost:5000/warState"
         state = self.__jsonConversion(urllib.urlopen(url))
         return state["targets"]
 
@@ -129,33 +126,17 @@ class MyBot():
     def getPosition(self):
         now = rospy.Time.now()
         self.__listener.waitForTransform(
-            "odom", "base_link", now, rospy.Duration(1.0))
+            "{}/odom".format(self.name), "{}/base_link".format(self.name), now, rospy.Duration(1.0))
         position, quaternion = self.__listener.lookupTransform(
-            "odom", "base_link", now)
+            "{}/odom".format(self.name), "{}/base_link".format(self.name), now)
         return position, quaternion
 
 
 if __name__ == '__main__':
     rospy.init_node("simple_navigation_goals")
-    side = rospy.get_param("/run_robot/side")
-    server_ip = rospy.get_param("/send_id_to_judge/judge_url")
+    my_bot = MyBot(rospy.get_namespace().replace("/", ""))
 
-    print("###############side:{}".format(side))
-    print("###############ip:{}".format(server_ip))
-    
-    if side=="r":
-        my_bot = MyBot("red_bot", server_ip)
-        print("a")
-    else:
-        my_bot = MyBot("blue_bot", server_ip)
-        print("b")
     current_goal = []
-    enemy_find_flag = False
-    enemy_find_time = rospy.get_time()
-    enemy_find_pos = []
-    enemy_lost_time = 5
-    enemy_dist = 0.3
-
     # main loop
     while not rospy.is_shutdown():
         # check current score
@@ -178,40 +159,19 @@ if __name__ == '__main__':
                 new_goal = target
         
         if my_bot.name == "red_bot":
-            print(my_bot.target_pos_dict["BL_B"])
+            #print(my_bot.target_pos_dict["BL_B"])
             if my_bot.target_pos_dict["BL_B"] != [None,None,None]:
-                enemy_find_flag = True
-                enemy_find_time = rospy.get_time()
-                enemy_find_pos = my_bot.target_pos_dict["BL_B"]
-                
-                #ちょっと離れたところを目標座標に設定する
-                th = math.atan2(enemy_find_pos[1]-position[1], enemy_find_pos[0]-position[0])
-                new_goal = [enemy_find_pos[0]-enemy_dist*math.cos(th), enemy_find_pos[1]-enemy_dist*math.sin(th), enemy_find_pos[2]]
-
-                print("############# enemy goal set!!!! #######################")
+                new_goal = my_bot.target_pos_dict["BL_B"]
+                #print("############# enemy goal set!!!! #######################")
         elif my_bot.name == "blue_bot":
-            print(my_bot.target_pos_dict["RE_B"])
+            #print(my_bot.target_pos_dict["RE_B"])
             if my_bot.target_pos_dict["RE_B"] != [None,None,None]:
-                enemy_find_flag = True
-                enemy_find_time = rospy.get_time()
-                enemy_find_pos = my_bot.target_pos_dict["RE_B"]
-                new_goal = enemy_find_pos
-                print("############# enemy goal set!!!! #######################")
-        
-        # 敵を見失ってもしばらく目標を変えない
-        if enemy_find_flag == True:
-            if rospy.get_time() - enemy_find_time > enemy_lost_time:
-                enemy_find_flag = False
-                print("############# enemy lost ###################")
-            else:
-                print(rospy.get_time() - enemy_find_time)
-                #ちょっと離れたところを目標座標に設定する
-                th = math.atan2(enemy_find_pos[1]-position[1], enemy_find_pos[0]-position[0])
-                new_goal = [enemy_find_pos[0]-enemy_dist*math.cos(th), enemy_find_pos[1]-enemy_dist*math.sin(th), enemy_find_pos[2]]
+                new_goal = my_bot.target_pos_dict["RE_B"]
+                #print("############# enemy goal set!!!! #######################")
 
-        print(new_goal)
+        #print(new_goal)
         if new_goal != current_goal:
-            print("new target")
+            #print("new target")
             current_goal = new_goal
             my_bot.sendGoal(current_goal[0], current_goal[1], current_goal[2])
         rospy.sleep(0.5)

@@ -21,17 +21,12 @@ import tf
 
 class image_converter:
   def __init__(self):
-    side = rospy.get_param("/run_robot/side")
-    if side=="r":
-      self.name = "red_bot"
-    else:
-      self.name = "blue_bot"
-    
+    self.name = rospy.get_namespace().replace("/", "")
     self.scan_pub = rospy.Publisher("scan_topic", LaserScan, queue_size=1)
     self.pose_pub = rospy.Publisher("enemyPose", PoseStamped, queue_size=1)
     self.bridge = CvBridge()
-    self.image_sub = message_filters.Subscriber("/image_raw", Image)
-    self.scan_sub = message_filters.Subscriber("/scan", LaserScan)
+    self.image_sub = message_filters.Subscriber("/{}/image_raw".format(self.name), Image)
+    self.scan_sub = message_filters.Subscriber("/{}/scan".format(self.name), LaserScan)
     self.ts = message_filters.ApproximateTimeSynchronizer([self.image_sub, self.scan_sub], 30, 0.5)
     self.ts.registerCallback(self.callback)
 
@@ -45,7 +40,7 @@ class image_converter:
   
   def generatePose(self, x, y, th, timestamp):
     goal = PoseStamped()
-    goal.header.frame_id = "/base_scan"
+    goal.header.frame_id = "/{}/base_scan".format(self.name)
     goal.header.stamp = timestamp
     goal.pose.position.x = x
     goal.pose.position.y = y
@@ -127,11 +122,11 @@ class image_converter:
     self.scan_pub.publish(scan_copy)
 
     now = rospy.Time.now()
-    self.__listener.waitForTransform("/odom", "/base_link", now, rospy.Duration(1.0))
+    self.__listener.waitForTransform("/{}/odom".format(self.name), "/{}/base_link".format(self.name), now, rospy.Duration(1.0))
     #position, quaternion = self.__listener.lookupTransform("red_bot/odom", "red_bot/base_link", now)
     #print(position, quaternion)
     #print(self.__listener.getLatestCommonTime("/{}/odom".format(self.name), "/{}/base_link".format(self.name)))
-    p = self.__listener.transformPose("/odom", self.generatePose(enemyPos[0], enemyPos[1], 0, now))
+    p = self.__listener.transformPose("/{}/odom".format(self.name), self.generatePose(enemyPos[0], enemyPos[1], 0, now))
 
     self.pose_pub.publish(self.generatePose(enemyPos[0], enemyPos[1], 0, now))
 

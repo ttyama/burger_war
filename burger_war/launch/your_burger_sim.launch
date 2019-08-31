@@ -9,6 +9,7 @@
   <!-- END sample program node -->
   <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher">
       <param name="publish_frequency" type="double" value="50.0" />
+      <param name="tf_prefix" value="$(arg robot_name)"/>
   </node>
   
   <!-- Arguments -->
@@ -17,11 +18,12 @@
   <arg name="move_forward_only" default="True"/>
   <!-- Map server -->
     <node pkg="map_server" name="map_server" type="map_server" args="$(arg map_file)">
+      <remap from="map" to="/$(arg robot_name)/map"/>
     </node>
 
 
   <!-- Arguments -->
-  <arg name="scan_topic"     default="scan"/>
+  <arg name="scan_topic"     default="/$(arg robot_name)/scan"/>
   <!--
   <arg name="initial_pose_x" default="0.0"/>
   <arg name="initial_pose_y" default="-1.3"/>
@@ -43,12 +45,11 @@
     <param name="initial_pose_y"            value="$(arg initial_pose_y)"/>
     <param name="initial_pose_a"            value="$(arg initial_pose_a)"/>
     -->
-    
     <rosparam file="$(find burger_war)/param/initial_pose_$(arg side).yaml" command="load" />
 
     <param name="gui_publish_rate"          value="50.0"/>
     <!-- <remap from="scan"                      to="$(arg scan_topic)"/> -->
-    <remap from="scan"                      to="scan"/>
+    <remap from="scan"                      to="/$(arg robot_name)/scan"/>
     <param name="laser_max_range"           value="3.5"/>
     <param name="laser_max_beams"           value="180"/>
     <param name="laser_z_hit"               value="0.5"/>
@@ -64,13 +65,13 @@
     <param name="odom_alpha2"               value="0.1"/>
     <param name="odom_alpha3"               value="0.1"/>
     <param name="odom_alpha4"               value="0.1"/>
-    <param name="odom_frame_id"             value="odom"/>
-    <param name="base_frame_id"             value="base_footprint"/>
+    <param name="odom_frame_id"             value="/$(arg robot_name)/odom"/>
+    <param name="base_frame_id"             value="/$(arg robot_name)/base_footprint"/>
   </node>
   
   <!-- Arguments -->
-  <arg name="cmd_vel_topic" default="cmd_vel" />
-  <arg name="odom_topic" default="odom" />
+  <arg name="cmd_vel_topic" default="/$(arg robot_name)/cmd_vel" />
+  <arg name="odom_topic" default="/$(arg robot_name)/odom" />
   <!-- move_base -->
   <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
     <param name="base_local_planner" value="dwa_local_planner/DWAPlannerROS" />
@@ -85,19 +86,17 @@
     <remap from="odom" to="$(arg odom_topic)"/>
     <param name="DWAPlannerROS/min_vel_x" value="0.0" if="$(arg move_forward_only)" />
 
-    <param name="local_costmap/global_frame"             value="odom"/>
-    <param name="local_costmap/robot_base_frame"             value="base_footprint"/>
-    <param name="global_costmap/robot_base_frame"            value="base_footprint"/>
+    <param name="local_costmap/global_frame"             value="$(arg robot_name)/odom"/>
+    <param name="local_costmap/robot_base_frame"             value="$(arg robot_name)/base_footprint"/>
+    <param name="global_costmap/robot_base_frame"            value="$(arg robot_name)/base_footprint"/>
     <param name="global_costmap/global_frame"            value="map"/>
-    <param name="global_costmap/scan/sensor_frame"            value="base_scan"/>
-    <param name="global_costmap/scan/topic"            value="scan"/>
-    <param name="local_costmap/scan/sensor_frame"            value="base_scan"/>
-    <param name="local_costmap/scan/topic"            value="scan"/>
+    <param name="global_costmap/scan/sensor_frame"            value="/$(arg robot_name)/base_scan"/>
+    <param name="global_costmap/scan/topic"            value="/$(arg robot_name)/scan"/>
+    <param name="local_costmap/scan/sensor_frame"            value="/$(arg robot_name)/base_scan"/>
+    <param name="local_costmap/scan/topic"            value="/$(arg robot_name)/scan"/>
   </node>
-  <node pkg="burger_war" type="run_robot.py" name="run_robot" output="screen" >
-    <param name="side" value="$(arg side)"/>
-  </node>
-  <node pkg="burger_war" type="estimateEnemyPos.py" name="estimateEnemyPos" output="screen" />
+  <node pkg="burger_war" type="run_robot_sim.py" name="run_robot" output="screen" />
+  <node pkg="burger_war" type="estimateEnemyPos_sim.py" name="estimateEnemyPos" output="screen" />
   
   <!-- End of your space  -->
 </launch>
